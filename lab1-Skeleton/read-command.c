@@ -45,6 +45,7 @@ token_t get_next_token(int (*get_next_byte) (void *), void *get_next_byte_argume
   int max_token_size = 20;
   int c;
   char *str = checked_malloc(max_token_size*sizeof(char));
+  str[token_size] = '\0';
   token_t t = (token_t)checked_malloc(sizeof(struct token));
   
   while(1)
