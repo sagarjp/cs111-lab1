@@ -403,20 +403,19 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   t->str = checked_malloc(sizeof(char));
   t->str[0] = '\0';
   t->type = EMPTY;
-  char* inputStream = makeInputStream(get_next_byte, get_next_byte_argument);
-  while(1)
-  {
-    token_t temp = get_next_token(inputStream, t);
-    //printf("%s %d\n", temp->prev->str, temp->prev->type);
-    //printf("%s %d\n", temp->str, temp->type);
-    if(temp->str[0] == EOF)
-    {
-      t = temp;
-      break;
-    }
-    t = temp;
-  }
-  t->next = NULL;
+  char* inputStream = makeInputStream(get_next_byte, get_next_byte_argument); 
+  while(1) 
+  { 
+    token_t temp = get_next_token(inputStream, t); 
+  //printf("%s %d\n", temp->prev->str, temp->prev->type); 
+  //printf("%s %d\n", temp->str, temp->type); 
+    if(temp->str[0] == EOF) 
+    { 
+      t = temp; break; 
+    } 
+    t = temp; 
+  } 
+  t->next = NULL; 
   t = remove_whitespace(head);
 
   // while (t != NULL)
