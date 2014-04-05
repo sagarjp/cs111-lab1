@@ -133,6 +133,7 @@ token_t get_next_token(int (*get_next_byte) (void *), void *get_next_byte_argume
   str[token_size] = '\0';
   t1->str = str;
   t1->prev = prev;
+  prev->next = t1;
   t1->next = t2;
   t1->type = get_token_type(t1->str);
   return t2;
