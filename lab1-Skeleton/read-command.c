@@ -4,6 +4,7 @@
 #include "command-internals.h"
 #include "alloc.h"
 #include <ctype.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,7 @@ enum token_type
   CLOSE_PARENTHESIS,
   OPEN_ANGLE,
   CLOSE_ANGLE,
+  SEQUENCE,
   SIMPLE,
   SUBSHELL,
   COMMENT,
@@ -33,6 +35,12 @@ enum token_type
   EMPTY,
   END_OF_FILE,
   INVALID,
+};
+
+struct token_command
+{
+  command_t command;
+  enum token_type type;
 };
 
 struct token
@@ -44,6 +52,8 @@ struct token
 };
 
 typedef struct token *token_t;
+
+typedef struct token_command *token_command_t;
 
 typedef enum token_type token_type_t;
 
@@ -93,7 +103,8 @@ enum token_type get_token_type(char *str)
       return OPEN_ANGLE;
     else if(str[i] == '>' && len == 1)
       return CLOSE_ANGLE;
-
+    else if(str[i] == ';' && len == 1)
+      return SEQUENCE;
     else 
       return INVALID;
     i++;
@@ -250,6 +261,90 @@ void convert_to_simple(token_t t)
   }
 }
 
+int number_of_words(char *str)
+{
+  int i = 0;
+  int len = 1;
+  while(str[i] != '\0')
+  {
+    if(str[i++] == ' ')
+      len = len + 1;
+
+  }
+  return len;
+}
+
+token_command_t get_next_command(token_t t)
+{
+  if(t->type == WORD)
+  {
+    const char delimiters[] = " ";
+    char *cp = strdup(t->str);
+    int n = number_of_words(t->str);
+    //printf("%d\n", n);
+    char **word = (char **)checked_malloc((n+1)*sizeof(char *));
+    int i = 0;
+    //printf("%s\n", cp);
+    char *str = strtok(cp, delimiters);
+    //printf("%s\n", str);
+    while(str != NULL)
+    {
+      word[i] = str;
+      i++;
+      //printf("%d:%s\n", i, word[i-1]);
+      str = strtok(NULL, delimiters);
+    }
+    word[i] = '\0';
+    //printf("finished copying %d\n", i);
+    //TODO:free str and cp
+    command_t c = (command_t)checked_malloc(sizeof(struct command));
+    c->type = SIMPLE_COMMAND;
+    c->status = 1;
+    c->input = NULL;
+    c->output = NULL;
+    c->u.word = word;
+    token_command_t token_c = (token_command_t)checked_malloc(sizeof(struct token_command));
+    token_c->command = c;
+    token_c->type = SIMPLE;
+    return token_c;
+  }
+  if(t->type == CLOSE_ANGLE || t->type == OPEN_ANGLE || t->type == OPEN_PARENTHESIS || t->type == CLOSE_PARENTHESIS)
+  {
+    token_command_t token_c = (token_command_t)checked_malloc(sizeof(struct token_command));
+    token_c->command = NULL;
+    token_c->type = t->type;
+    return token_c;
+  }
+  if(t->type == AND || t->type == OR || t->type == SEQUENCE || t->type == PIPE)
+  {
+      command_t c = (command_t)checked_malloc(sizeof(struct command));
+      c->status = 1;
+      c->input = NULL;
+      c->output = NULL;
+      token_command_t token_c = (token_command_t)checked_malloc(sizeof(struct token_command));
+      token_c->command = c;
+      token_c->type = t->type;
+    if(t->type == AND)
+    {
+      c->type = AND_COMMAND;
+    }
+    if(t->type == OR)
+    {
+      c->type = OR_COMMAND;
+    }
+    if(t->type == SEQUENCE)
+    {
+      c->type = SEQUENCE_COMMAND;
+    }
+    if(t->type == PIPE)
+    {
+      c->type = PIPE_COMMAND;
+    }
+    return token_c;
+  }
+  return NULL;
+}
+
 command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_next_byte_argument)
 {
   /* FIXME: Replace this with your implementation.  You may need to
@@ -285,13 +380,37 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   //   t = t->next;
   // }
   convert_to_simple(head);
+  // t = head;
+  // while (t != NULL)
+  // {
+  //   printf("%s %d\n", t->str, t->type);
+  //   //if (t -> next != NULL) {
+  //     //printf("%s %d\n", t->next->str, t->next->type);
+  //   //}
+  //   t = t->next;
+  // }
   t = head;
-  while (t != NULL)
+  while(t != NULL)
   {
-    printf("%s %d\n", t->str, t->type);
-    //if (t -> next != NULL) {
-      //printf("%s %d\n", t->next->str, t->next->type);
-    //}
+    token_command_t c = get_next_command(t);
+    //printf("%s\n", t->str);
+    if(c != NULL)
+    {
+      if(c->type == SIMPLE)
+      {
+        int i = 0;
+        while(c->command->u.word[i] != '\0')
+        {
+          printf("%d:%s\n", i, c->command->u.word[i]);
+          i=i+1;
+        }
+      }
+      else 
+      {
+        printf("%s %d\n", t->str, c->type);
+      }
+      printf("\n");
+    }
     t = t->next;
   }
   return 0;
