@@ -30,6 +30,7 @@ enum token_type
   COMMENT,
   NEWLINE,
   WHITESPACE,
+  EMPTY,
   END_OF_FILE,
   INVALID,
 };
@@ -50,6 +51,8 @@ enum token_type get_token_type(char *str)
 {
   int i = 0;
   int len = strlen(str);
+  if(len == 0)
+    return EMPTY;
   while(str[i] != '\0')
   {
     if(str[i] == ' ' && len == 1)
@@ -195,6 +198,58 @@ token_t remove_whitespace(token_t head)
   return head;
 }
 
+void convert_to_simple(token_t t)
+{
+  while(t != NULL)
+  {
+    if(t->type != WORD)
+    {
+      t = t->next;
+      continue;
+    }
+    token_t h = t;
+    int len = 0;
+    int i = 0;
+    while(t->type == WORD)
+    {
+      i++;
+      len += strlen(t->str);
+      t = t->next;
+    }
+    //printf("%s %s\n", h->str, t->prev->str);
+    char *str = (char *)checked_malloc((len+1+i)*sizeof(char));
+    t = h;
+    len = 0;
+    strcpy(&(str[len]), t->str);
+    //printf("copied %s\n", t->str);
+    len += strlen(t->str);
+    t = t->next;
+    while(t->type == WORD)
+    {
+      str[len] = ' ';
+      len++;
+      strcpy(&(str[len]), t->str);
+      len += strlen(t->str);
+      //printf("copied %s\n", t->str);
+      t = t->next;
+    }
+    t = h->next;
+    token_t temp;
+    while(t->type == WORD)
+    {
+      temp = t->next;
+      free(t->str);
+      free(t);
+      t = temp;
+    }
+    free(h->str);
+    h->str = str;
+    h->next = t;
+    t->prev = h;
+    //printf("%s.\n", h->str);
+  }
+}
+
 command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_next_byte_argument)
 {
   /* FIXME: Replace this with your implementation.  You may need to
@@ -203,6 +258,9 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   token_t t = checked_malloc(sizeof(struct token));
   token_t head = t;
   t->prev = NULL;
+  t->str = checked_malloc(sizeof(char));
+  t->str[0] = '\0';
+  t->type = EMPTY;
   while(1)
   {
     token_t temp = get_next_token(get_next_byte, get_next_byte_argument, t);
@@ -218,6 +276,16 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   t->next = NULL;
   t = remove_whitespace(head);
 
+  // while (t != NULL)
+  // {
+  //   printf("%s %d\n", t->str, t->type);
+  //   //if (t -> next != NULL) {
+  //     //printf("%s %d\n", t->next->str, t->next->type);
+  //   //}
+  //   t = t->next;
+  // }
+  convert_to_simple(head);
+  t = head;
   while (t != NULL)
   {
     printf("%s %d\n", t->str, t->type);
@@ -226,7 +294,6 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
     //}
     t = t->next;
   }
-
   return 0;
 }
 
