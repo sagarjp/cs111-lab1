@@ -206,8 +206,8 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   while(1)
   {
     token_t temp = get_next_token(get_next_byte, get_next_byte_argument, t);
-    printf("%s %d\n", temp->prev->str, temp->prev->type);
-    printf("%s %d\n", temp->str, temp->type);
+    //printf("%s %d\n", temp->prev->str, temp->prev->type);
+    //printf("%s %d\n", temp->str, temp->type);
     if(temp->str[0] == EOF)
     {
       t = temp;
@@ -217,6 +217,15 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   }
   t->next = NULL;
   t = remove_whitespace(head);
+
+  while (t != NULL)
+  {
+    printf("%s %d\n", t->str, t->type);
+    //if (t -> next != NULL) {
+      //printf("%s %d\n", t->next->str, t->next->type);
+    //}
+    t = t->next;
+  }
 
   return 0;
 }
