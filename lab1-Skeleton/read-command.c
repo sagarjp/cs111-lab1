@@ -112,20 +112,42 @@ enum token_type get_token_type(char *str)
   return WORD;
 }
 
-token_t get_next_token(int (*get_next_byte) (void *), void *get_next_byte_argument, struct token *prev)
+char* makeInputStream(int (*get_next_byte) (void *), void *get_next_byte_argument)
 {
+  int inputStreamSize = 100;
+  int byteCount = 0;
+  int c;
+  char *inputStream = (char*)checked_malloc(inputStreamSize*sizeof(char));
+
+  while ((c = get_next_byte(get_next_byte_argument)) != EOF) {
+    inputStream[byteCount] = c;
+    byteCount++;
+
+    if (byteCount == inputStreamSize) {
+      inputStreamSize += 100;
+      inputStream = checked_realloc(inputStream, inputStreamSize*sizeof(char));
+    }
+  }
+  inputStream[byteCount] = EOF;
+  byteCount++;
+
+  return inputStream;
+}
+
+token_t get_next_token(char* inputStream, struct token *prev)
+{
+  static int pos = -1;
   int token_size = 0;
   int max_token_size = 20;
-  int c;
   char *str = checked_malloc(max_token_size*sizeof(char));
   str[token_size] = '\0';
   token_t t1 = (token_t)checked_malloc(sizeof(struct token));
   token_t t2 = (token_t)checked_malloc(sizeof(struct token));
 
-  while(1)
+  for(;;)
   {
-    c = get_next_byte(get_next_byte_argument);
-    if(c == EOF)
+    pos++;
+    if(inputStream[pos] == EOF)
     {
       goto return_token;
     }
@@ -134,31 +156,56 @@ token_t get_next_token(int (*get_next_byte) (void *), void *get_next_byte_argume
       max_token_size += 20;
       str = checked_realloc(str, max_token_size*sizeof(char));
     }
-    if(c == ' ' || c == '\n')
+
+    //while ((inputStream[pos] == ' ' || inputStream[pos] == '\t') && prev->type == WHITESPACE)
+      //pos++;
+
+    if(inputStream[pos] == ' ' || inputStream[pos] == '\n' || inputStream[pos] == '\t' || inputStream[pos] == '('
+      || inputStream[pos] == ')' || inputStream[pos] == '<' || inputStream[pos] == '>' || inputStream[pos] == ';')
     {
       goto return_token;
     }
-    if (c == '#')
+    if (inputStream[pos] == '&')
+    {
+      if (inputStream[pos+1] == '&')
+      {
+        pos++; t2->type = AND;
+      }
+      else
+        t2->type = INVALID;
+      goto return_token;
+    }
+    if (inputStream[pos] == '|')
+    {
+      if (inputStream[pos+1] == '|')
+      {
+        pos++; t2->type = OR;
+      }
+      goto return_token;
+    }
+    if (inputStream[pos] == '#')
     {
       // if (token_size != 0)
       //   fprintf(stderr, "error in comment token");
 
-      while (c != '\n')
+      while (inputStream[pos] != '\n')
       {
-        c = get_next_byte(get_next_byte_argument);
+        pos++;
       }
       goto return_token;
     }
-    str[token_size] = c;
+    str[token_size] = inputStream[pos];
     token_size++;
   }
 
   return_token:
   t2->str = checked_malloc(2*sizeof(char));
-  t2->str[0] = c;
+  t2->str[0] = inputStream[pos];
   t2->str[1] = '\0';
   t2->prev = t1;
-  t2->type = get_token_type(t2->str);
+
+  if (t2 -> type != AND && t2->type != OR && t2->type != INVALID)
+    t2->type = get_token_type(t2->str);
 
   if(token_size == max_token_size)
   {
@@ -356,9 +403,10 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   t->str = checked_malloc(sizeof(char));
   t->str[0] = '\0';
   t->type = EMPTY;
+  char* inputStream = makeInputStream(get_next_byte, get_next_byte_argument);
   while(1)
   {
-    token_t temp = get_next_token(get_next_byte, get_next_byte_argument, t);
+    token_t temp = get_next_token(inputStream, t);
     //printf("%s %d\n", temp->prev->str, temp->prev->type);
     //printf("%s %d\n", temp->str, temp->type);
     if(temp->str[0] == EOF)
