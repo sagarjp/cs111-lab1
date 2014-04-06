@@ -4,6 +4,7 @@
 #include "command-internals.h"
 #include "alloc.h"
 #include <ctype.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
@@ -308,6 +309,38 @@ void convert_to_simple(token_t t)
   }
 }
 
+void remove_newline(token_t t)
+{
+  bool isOperator = false;
+  while(t != NULL)
+  {
+    if(t->type == NEWLINE)
+    {
+      if(!isOperator && t->prev != NULL && t->next != NULL)
+      {
+        if(t->prev->type != NEWLINE && t->next->type != NEWLINE)
+        {
+          t->type = SEQUENCE;
+        }
+        else if(t->next->type == NEWLINE)
+        {
+          t->prev->next = t->next;
+          t->next->prev = t->prev;
+          token_t temp = t->next;
+          free(t);
+          t = temp;
+          continue;
+        }
+      }
+      else if(t->type == NEWLINE)
+      {
+
+      }
+    }
+    t = t->next;
+  }
+}
+
 int number_of_words(char *str)
 {
   int i = 0;
@@ -427,39 +460,40 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   //   t = t->next;
   // }
   convert_to_simple(head);
+  //remove_newline(head);
+  t = head;
+  while (t != NULL)
+  {
+     printf("%s %d\n", t->str, t->type);
+     //if (t -> next != NULL) {
+       //printf("%s %d\n", t->next->str, t->next->type);
+     //}
+     t = t->next;
+  }
   // t = head;
-  // while (t != NULL)
+  // while(t != NULL)
   // {
-  //   printf("%s %d\n", t->str, t->type);
-  //   //if (t -> next != NULL) {
-  //     //printf("%s %d\n", t->next->str, t->next->type);
-  //   //}
+  //   token_command_t c = get_next_command(t);
+  //   //printf("%s\n", t->str);
+  //   if(c != NULL)
+  //   {
+  //     if(c->type == SIMPLE)
+  //     {
+  //       int i = 0;
+  //       while(c->command->u.word[i] != '\0')
+  //       {
+  //         printf("%d:%s\n", i, c->command->u.word[i]);
+  //         i=i+1;
+  //       }
+  //     }
+  //     else 
+  //     {
+  //       printf("%s %d\n", t->str, c->type);
+  //     }
+  //     printf("\n");
+  //   }
   //   t = t->next;
   // }
-  t = head;
-  while(t != NULL)
-  {
-    token_command_t c = get_next_command(t);
-    //printf("%s\n", t->str);
-    if(c != NULL)
-    {
-      if(c->type == SIMPLE)
-      {
-        int i = 0;
-        while(c->command->u.word[i] != '\0')
-        {
-          printf("%d:%s\n", i, c->command->u.word[i]);
-          i=i+1;
-        }
-      }
-      else 
-      {
-        printf("%s %d\n", t->str, c->type);
-      }
-      printf("\n");
-    }
-    t = t->next;
-  }
   return 0;
 }
 
