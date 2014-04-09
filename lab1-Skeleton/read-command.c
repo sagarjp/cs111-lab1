@@ -151,164 +151,174 @@ enum token_type get_token_type(char *str)
   }
 
   token_t get_next_token(char* inputStream, struct token *prev)
-  {
-    static int pos = -1;
-    int token_size = 0;
-    int max_token_size = 20;
-    char *str = checked_malloc(max_token_size*sizeof(char));
-    str[token_size] = '\0';
-    token_t t1 = (token_t)checked_malloc(sizeof(struct token));
-    token_t t2 = (token_t)checked_malloc(sizeof(struct token));
-    static int parenthesisCounter = 0;
+{
+  static int pos = -1;
+  int token_size = 0;
+  int max_token_size = 20;
+  char *str = checked_malloc(max_token_size*sizeof(char));
+  str[token_size] = '\0';
+  token_t t1 = (token_t)checked_malloc(sizeof(struct token));
+  token_t t2 = (token_t)checked_malloc(sizeof(struct token));
+  static int parenthesisCounter = 0;
 
-    for(;;)
+  for(;;)
+  {
+    pos++;
+    if(inputStream[pos] == EOF)
     {
-      pos++;
-      if(inputStream[pos] == EOF)
-      {
-        if (prev->type != EMPTY && (prev->prev->type == AND || prev->prev->type == OR 
-          || prev->prev->type == OPEN_ANGLE || prev->prev->type == CLOSE_ANGLE))
-          error(1, 0, "%d: Incorrect syntax near EOF", lineNumber);
-        if (parenthesisCounter != 0)
-          error(1, 0, "%d: Incorrect syntax of parenthesis", lineNumber);
-        goto return_token;
-      }
-      if(token_size == max_token_size)
-      {
-        max_token_size += 20;
-        str = checked_realloc(str, max_token_size*sizeof(char));
-      }
+      if (prev->type != EMPTY && (prev->prev->type == AND || prev->prev->type == OR 
+        || prev->prev->type == OPEN_ANGLE || prev->prev->type == CLOSE_ANGLE) && strcmp(str, "") == 0)
+        error(1, 0, "%d: Incorrect syntax near EOF", lineNumber);
+      if (parenthesisCounter != 0)
+        error(1, 0, "%d: Incorrect syntax of parenthesis", lineNumber);
+      goto return_token;
+    }
+    if(token_size == max_token_size)
+    {
+      max_token_size += 20;
+      str = checked_realloc(str, max_token_size*sizeof(char));
+    }
 
     //while ((inputStream[pos] == ' ' || inputStream[pos] == '\t') && prev->type == WHITESPACE)
       //pos++;
 
-      if (inputStream[pos] == '`')
-        error(1, 0, "%d: Incorrect syntax near token \'`\'", lineNumber);
+    if (inputStream[pos] == '`')
+      error(1, 0, "%d: Incorrect syntax near token \'`\'", lineNumber);
 
-      if(inputStream[pos] == ' ' || inputStream[pos] == '\n' || inputStream[pos] == '\t' || inputStream[pos] == '('
-        || inputStream[pos] == ')' || inputStream[pos] == '<' || inputStream[pos] == '>' || inputStream[pos] == ';')
+    if(inputStream[pos] == ' ' || inputStream[pos] == '\n' || inputStream[pos] == '\t' || inputStream[pos] == '('
+      || inputStream[pos] == ')' || inputStream[pos] == '<' || inputStream[pos] == '>' || inputStream[pos] == ';')
+    {
+      if (inputStream[pos] == '\n')
+        lineNumber++;
+      if ((inputStream[pos] == '>' || inputStream[pos] == '<') && ((strcmp(str, "") == 0 && prev->type == EMPTY) || pos == 0))
+        error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
+      if (inputStream[pos] == '>' && inputStream[pos-1] == '>' && inputStream[pos+1] == '>')
+        error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
+      if (inputStream[pos] == '>' && inputStream[pos+1] == EOF)
+        error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
+      if (inputStream[pos] == ';')
       {
-        if (inputStream[pos] == '\n')
-          lineNumber++;
-        if ((inputStream[pos] == '>' || inputStream[pos] == '<') && (prev->type == EMPTY || pos == 0))
-          error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
-        if (inputStream[pos] == '>' && inputStream[pos-1] == '>' && inputStream[pos+1] == '>')
-          error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
-        if (inputStream[pos] == '>' && inputStream[pos+1] == EOF)
-          error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
-        if (inputStream[pos] == ';' && (prev->type == SEMI_COLON || prev->type == EMPTY || pos == 0 || prev->type == NEWLINE))
-        error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
-        if (inputStream[pos] == ';')
-        {
-          if (prev->type == WHITESPACE) {
-            token_t temp = prev;
-            while (temp->type == WHITESPACE && temp->type != EMPTY)
-            {
-              if (temp->prev->type == NEWLINE)
-                error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
-              temp = temp->prev;
-            }
-          }
-        }
-        if (inputStream[pos] == '(') {
-          parenthesisCounter++;
-        }
-        if (inputStream[pos] == ')') {
-          parenthesisCounter--;
-          if (parenthesisCounter < 0)
-            error(1, 0, "%d: Incorrect closing parenthesis", lineNumber);
-        }
-
-        goto return_token;
+        if (prev->type == SEMI_COLON)
+          error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
+        if ((pos == 0 || prev->type == NEWLINE) && (strcmp(str, "") == 0 && prev->type == EMPTY))
+          error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
       }
-      if (inputStream[pos] == '&')
+      if (inputStream[pos] == ';')
       {
-        if (prev->type == AND || prev->type == EMPTY || pos == 0 || prev->type == NEWLINE)
-          error(1, 0, "%d: Incorrect syntax near token \'&\'", lineNumber);
         if (prev->type == WHITESPACE) {
-          token_t temp = prev;
-          while (temp->type == WHITESPACE && temp->type != EMPTY)
-          {
-            if (temp->prev->type == NEWLINE)
-              error(1, 0, "%d: Incorrect syntax near token \'&\'", lineNumber);
-            temp = temp->prev;
-          }
-        }
-        if (inputStream[pos+1] == '&')
+        token_t temp = prev;
+        while (temp->type == WHITESPACE && temp->type != EMPTY)
         {
-          pos++; t2->type = AND;
+          if (temp->prev->type == NEWLINE)
+            error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
+          temp = temp->prev;
         }
-        else
-          t2->type = INVALID;
-        goto return_token;
       }
-      if (inputStream[pos] == '|')
-      {
-        if (prev->type == OR || prev->type == EMPTY || pos == 0 || prev->type == NEWLINE)
-          error(1, 0, "%d: Incorrect syntax near token \'|\'", lineNumber);
-        if (prev->type == WHITESPACE) {
-          token_t temp = prev;
-          while (temp->type == WHITESPACE && temp->type != EMPTY)
-          {
-            if (temp->prev->type == NEWLINE)
-              error(1, 0, "%d: Incorrect syntax near token \'|\'", lineNumber);
-            temp = temp->prev;
-          }
-        }
-        if (inputStream[pos+1] == '|')
+      }
+      if (inputStream[pos] == '(') {
+        parenthesisCounter++;
+      }
+      if (inputStream[pos] == ')') {
+        parenthesisCounter--;
+        if (parenthesisCounter < 0)
+          error(1, 0, "%d: Incorrect closing parenthesis", lineNumber);
+      }
+      
+      goto return_token;
+    }
+    if (inputStream[pos] == '&')
+    {
+      if (prev->type == AND)
+        error(1, 0, "%d: Incorrect syntax near token \'&\'", lineNumber);
+      if ((pos == 0 || prev->type == NEWLINE) && (strcmp(str, "") == 0 && prev->type == EMPTY))
+        error(1, 0, "%d: Incorrect syntax near token \'&\'", lineNumber);
+      if (prev->type == WHITESPACE) {
+        token_t temp = prev;
+        while (temp->type == WHITESPACE && temp->type != EMPTY)
         {
-          pos++; t2->type = OR;
+          if (temp->prev->type == NEWLINE)
+            error(1, 0, "%d: Incorrect syntax near token \'&\'", lineNumber);
+          temp = temp->prev;
         }
-        goto return_token;
       }
-      if (inputStream[pos] == '#')
+      if (inputStream[pos+1] == '&')
       {
+        pos++; t2->type = AND;
+      }
+      else
+        t2->type = INVALID;
+      goto return_token;
+    }
+    if (inputStream[pos] == '|')
+    {
+      if (prev->type == OR)
+        error(1, 0, "%d: Incorrect syntax near token \'|\'", lineNumber);
+      if ((pos == 0 || prev->type == NEWLINE) && (strcmp(str, "") == 0 && prev->type == EMPTY))
+        error(1, 0, "%d: Incorrect syntax near token \'|\'", lineNumber);
+      if (prev->type == WHITESPACE) {
+        token_t temp = prev;
+        while (temp->type == WHITESPACE && temp->type != EMPTY)
+        {
+          if (temp->prev->type == NEWLINE)
+            error(1, 0, "%d: Incorrect syntax near token \'|\'", lineNumber);
+          temp = temp->prev;
+        }
+      }
+      if (inputStream[pos+1] == '|')
+      {
+        pos++; t2->type = OR;
+      }
+      goto return_token;
+    }
+    if (inputStream[pos] == '#')
+    {
       // if (token_size != 0)
       //   fprintf(stderr, "error in comment token");
 
-        while (inputStream[pos] != '\n')
-        {
-          pos++;
-        }
-        lineNumber++;
-        goto return_token;
+      while (inputStream[pos] != '\n')
+      {
+        pos++;
       }
-      str[token_size] = inputStream[pos];
-      token_size++;
+      lineNumber++;
+      goto return_token;
     }
-
-    return_token:
-    t2->str = checked_malloc(2*sizeof(char));
-    t2->str[0] = inputStream[pos];
-    t2->str[1] = '\0';
-    t2->prev = t1;
-
-    if (t2 -> type != AND && t2->type != OR && t2->type != INVALID)
-      t2->type = get_token_type(t2->str);
-
-    if(token_size == max_token_size)
-    {
-      max_token_size += 1;
-      str = checked_realloc(str, max_token_size*sizeof(char));
-    }
-    str[token_size] = '\0';
-    t1->str = str;
-    t1->prev = prev;
-    prev->next = t1;
-    t1->next = t2;
-    t1->type = get_token_type(t1->str);
-    if (t1 -> type == EMPTY)
-    {
-      token_t toDelete = t1;
-      token_t toReturn = t2;
-      t1->prev->next=t2;
-      t2->prev = t1->prev;
-      free(toDelete);
-      return toReturn;
-    }
-    else
-      return t2;
+    str[token_size] = inputStream[pos];
+    token_size++;
   }
+
+  return_token:
+  t2->str = checked_malloc(2*sizeof(char));
+  t2->str[0] = inputStream[pos];
+  t2->str[1] = '\0';
+  t2->prev = t1;
+
+  if (t2 -> type != AND && t2->type != OR && t2->type != INVALID)
+    t2->type = get_token_type(t2->str);
+
+  if(token_size == max_token_size)
+  {
+    max_token_size += 1;
+    str = checked_realloc(str, max_token_size*sizeof(char));
+  }
+  str[token_size] = '\0';
+  t1->str = str;
+  t1->prev = prev;
+  prev->next = t1;
+  t1->next = t2;
+  t1->type = get_token_type(t1->str);
+  if (t1 -> type == EMPTY)
+  {
+    token_t toDelete = t1;
+    token_t toReturn = t2;
+    t1->prev->next=t2;
+    t2->prev = t1->prev;
+    free(toDelete);
+    return toReturn;
+  }
+  else
+  return t2;
+}
+
 
   token_t remove_whitespace(token_t head)
   {
