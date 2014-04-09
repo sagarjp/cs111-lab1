@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <error.h>
 
+int lineNumber = 1;
+
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
 
@@ -157,12 +159,18 @@ enum token_type get_token_type(char *str)
     str[token_size] = '\0';
     token_t t1 = (token_t)checked_malloc(sizeof(struct token));
     token_t t2 = (token_t)checked_malloc(sizeof(struct token));
+    static int parenthesisCounter = 0;
 
     for(;;)
     {
       pos++;
       if(inputStream[pos] == EOF)
       {
+        if (prev->type != EMPTY && (prev->prev->type == AND || prev->prev->type == OR 
+          || prev->prev->type == OPEN_ANGLE || prev->prev->type == CLOSE_ANGLE))
+          error(1, 0, "%d: Incorrect syntax near EOF", lineNumber);
+        if (parenthesisCounter != 0)
+          error(1, 0, "%d: Incorrect syntax of parenthesis", lineNumber);
         goto return_token;
       }
       if(token_size == max_token_size)
@@ -174,13 +182,58 @@ enum token_type get_token_type(char *str)
     //while ((inputStream[pos] == ' ' || inputStream[pos] == '\t') && prev->type == WHITESPACE)
       //pos++;
 
+      if (inputStream[pos] == '`')
+        error(1, 0, "%d: Incorrect syntax near token \'`\'", lineNumber);
+
       if(inputStream[pos] == ' ' || inputStream[pos] == '\n' || inputStream[pos] == '\t' || inputStream[pos] == '('
         || inputStream[pos] == ')' || inputStream[pos] == '<' || inputStream[pos] == '>' || inputStream[pos] == ';')
       {
+        if (inputStream[pos] == '\n')
+          lineNumber++;
+        if ((inputStream[pos] == '>' || inputStream[pos] == '<') && (prev->type == EMPTY || pos == 0))
+          error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
+        if (inputStream[pos] == '>' && inputStream[pos-1] == '>' && inputStream[pos+1] == '>')
+          error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
+        if (inputStream[pos] == '>' && inputStream[pos+1] == EOF)
+          error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
+        if (inputStream[pos] == ';' && (prev->type == SEMI_COLON || prev->type == EMPTY || pos == 0 || prev->type == NEWLINE))
+        error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
+        if (inputStream[pos] == ';')
+        {
+          if (prev->type == WHITESPACE) {
+            token_t temp = prev;
+            while (temp->type == WHITESPACE && temp->type != EMPTY)
+            {
+              if (temp->prev->type == NEWLINE)
+                error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
+              temp = temp->prev;
+            }
+          }
+        }
+        if (inputStream[pos] == '(') {
+          parenthesisCounter++;
+        }
+        if (inputStream[pos] == ')') {
+          parenthesisCounter--;
+          if (parenthesisCounter < 0)
+            error(1, 0, "%d: Incorrect closing parenthesis", lineNumber);
+        }
+
         goto return_token;
       }
       if (inputStream[pos] == '&')
       {
+        if (prev->type == AND || prev->type == EMPTY || pos == 0 || prev->type == NEWLINE)
+          error(1, 0, "%d: Incorrect syntax near token \'&\'", lineNumber);
+        if (prev->type == WHITESPACE) {
+          token_t temp = prev;
+          while (temp->type == WHITESPACE && temp->type != EMPTY)
+          {
+            if (temp->prev->type == NEWLINE)
+              error(1, 0, "%d: Incorrect syntax near token \'&\'", lineNumber);
+            temp = temp->prev;
+          }
+        }
         if (inputStream[pos+1] == '&')
         {
           pos++; t2->type = AND;
@@ -191,6 +244,17 @@ enum token_type get_token_type(char *str)
       }
       if (inputStream[pos] == '|')
       {
+        if (prev->type == OR || prev->type == EMPTY || pos == 0 || prev->type == NEWLINE)
+          error(1, 0, "%d: Incorrect syntax near token \'|\'", lineNumber);
+        if (prev->type == WHITESPACE) {
+          token_t temp = prev;
+          while (temp->type == WHITESPACE && temp->type != EMPTY)
+          {
+            if (temp->prev->type == NEWLINE)
+              error(1, 0, "%d: Incorrect syntax near token \'|\'", lineNumber);
+            temp = temp->prev;
+          }
+        }
         if (inputStream[pos+1] == '|')
         {
           pos++; t2->type = OR;
@@ -206,6 +270,7 @@ enum token_type get_token_type(char *str)
         {
           pos++;
         }
+        lineNumber++;
         goto return_token;
       }
       str[token_size] = inputStream[pos];
@@ -710,7 +775,7 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   //   t = t->next;
   // }
     convert_to_simple(head);
-  remove_newline(head);
+    remove_newline(head);
   // t = head;
   // while (t != NULL)
   // {
@@ -730,17 +795,17 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
    //   //}
    //   t = t->next;
    // }
-   command_stream_t stream = make_command(head);
-   command_stream_t c = checked_malloc(sizeof(struct command_stream));
-   c->head = NULL;
-   c->tail = NULL;
-   while(stream->head != NULL)
-   {
-    struct command_node *n = stream->head->next;
-    stream->head->next = c->head;
-    c->head = stream->head;
-    stream->head = n;
-  }
+    command_stream_t stream = make_command(head);
+    command_stream_t c = checked_malloc(sizeof(struct command_stream));
+    c->head = NULL;
+    c->tail = NULL;
+    while(stream->head != NULL)
+    {
+      struct command_node *n = stream->head->next;
+      stream->head->next = c->head;
+      c->head = stream->head;
+      stream->head = n;
+    }
   // while(c->head != NULL)
   // {
   //   printf("new command\n");
@@ -771,17 +836,17 @@ command_stream_t make_command_stream(int (*get_next_byte) (void *), void *get_ne
   //   }
   //   t = t->next;
   // }
-  return c;
-}
+    return c;
+  }
 
-command_t read_command_stream(command_stream_t t)
-{
+  command_t read_command_stream(command_stream_t t)
+  {
   /* FIXME: Replace this with your implementation too.  */
   //error (1, 0, "command reading not yet implemented");
   //while(operators->head != NULL && ope)
-  if(t->head == NULL)
-    return NULL;
-  command_t c = t->head->command;
-  t->head = t->head->next;
-  return c;
-}
+    if(t->head == NULL)
+      return NULL;
+    command_t c = t->head->command;
+    t->head = t->head->next;
+    return c;
+  }
