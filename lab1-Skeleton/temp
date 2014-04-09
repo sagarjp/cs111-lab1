@@ -1,0 +1,63 @@
+
+  |
+  ||
+    |
+    ||
+      &&
+  : : :
+  &&
+: : :
+(
+}
+# 1
+# 2
+# 3
+# 4
+# 5
+# 6
+# 7
+# 8
+        a \
+a&&b||
+    a<b>c \
+  a b<c>d
+a b<c > d
+a<b>c|d<e>f|g<h>i
+        b \
+#! /bin/sh
+      c \
+ c &&
+      cat</etc/passwd \
+cat < /etc/passwd | tr a-z A-Z | sort -u || echo sort failed!
+cat < /etc/passwd | tr a-z A-Z | sort -u > out || echo sort failed!
+  cat test.err
+cat >test.exp <<'EOF'
+cat >test.sh <<'EOF'
+cd "$tmp" || exit
+      d \
+    d<e>f \
+  d | e && f|
+diff -u test.exp test.out || exit
+      e \
+    echo sort failed!
+EOF
+) || exit
+  exit 1
+      f \
+  g++ -c foo.c
+g++ -c foo.c
+      g<h
+g<h
+    g<h>i
+mkdir "$tmp" || exit
+rm -fr "$tmp"
+      sort -u \
+      sort -u>out \
+test ! -s test.err || {
+# This is a weird example: nobody would ever want to run this.
+../timetrash -p test.sh >test.out 2>test.err || exit
+tmp=$0-$$.tmp
+      tr a-z A-Z \
+true
+  true
+# UCLA CS 111 Lab 1 - Test that valid syntax is processed correctly.

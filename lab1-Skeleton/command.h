@@ -133,19 +133,8 @@
  
  command_stream = a&&b||c -> d||e -> NULL;
  */
-struct command_node
-{
-  struct command *command;
-  struct command_node *next;
-};
 
 typedef struct command *command_t;
-
-struct command_stream
-{
-  struct command_node *head;
-  struct command_node *tail;
-};
 
 typedef struct command_stream *command_stream_t;
 
