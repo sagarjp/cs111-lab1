@@ -1,1 +1,1 @@
-echo abc;echo bc
+echo abc && cat < temp
