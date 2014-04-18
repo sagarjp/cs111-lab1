@@ -144,6 +144,16 @@ enum token_type get_token_type(char *str)
         inputStream = checked_realloc(inputStream, inputStreamSize*sizeof(char));
       }
     }
+
+    if(inputStream[byteCount-1] != '\n') {
+      if (byteCount == inputStreamSize) {
+        inputStreamSize += 100;
+        inputStream = checked_realloc(inputStream, inputStreamSize*sizeof(char));
+      }
+      inputStream[byteCount] = '\n';
+      byteCount++;
+    }
+
     inputStream[byteCount] = EOF;
     byteCount++;
 
@@ -198,7 +208,7 @@ enum token_type get_token_type(char *str)
         error(1, 0, "%d: Incorrect syntax near I/O redirection", lineNumber);
       if (inputStream[pos] == ';')
       {
-        if (prev->type == SEMI_COLON)
+        if (prev->type == SEQUENCE)
           error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
         if ((pos == 0 || prev->type == NEWLINE) && (strcmp(str, "") == 0 && prev->type == EMPTY))
           error(1, 0, "%d: Incorrect syntax near token \';\'", lineNumber);
@@ -728,7 +738,7 @@ command_stream_t make_command(token_t t)
     while(operators->head != NULL)
     {
       //printf("combine last two operators %d\n", operators->head->type);
-      if(operators->head->type == SEQUENCE && operators->head->next == NULL && commands->head == NULL)
+      if(operators->head->type == SEQUENCE && operators->head->next == NULL)
         break;
       struct command_node *t2 = pop(commands);
       struct command_node *t1 = pop(commands);
