@@ -101,7 +101,7 @@ enum token_type get_token_type(char *str)
       continue;
     }
     else if(str[i] == ';' && len == 1)
-    return SEMI_COLON;
+    return SEQUENCE;
     else if(str[i] == '|')
     {
       if (len == 1)
@@ -728,7 +728,7 @@ command_stream_t make_command(token_t t)
     while(operators->head != NULL)
     {
       //printf("combine last two operators %d\n", operators->head->type);
-      if(operators->head->type == SEQUENCE && operators->head->next == NULL)
+      if(operators->head->type == SEQUENCE && operators->head->next == NULL && commands->head == NULL)
         break;
       struct command_node *t2 = pop(commands);
       struct command_node *t1 = pop(commands);
