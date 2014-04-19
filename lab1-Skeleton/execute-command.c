@@ -67,10 +67,7 @@ void execute_simple_command(command_t command)
     waitpid(pid,&command->status,0);
   }
   //printf("simple %d\n", WEXITSTATUS(command->status));
-  if(command->status != 0)
-    command->status = 1;
-  else 
-    command->status = 0;
+  command->status = WEXITSTATUS(command->status);
   _exit(command->status);
 }        
 
@@ -129,61 +126,43 @@ void execute_or_command(command_t command)
 
 void execute_pipe_command(command_t command)
 {
-
   int pipe_array[2];
   pid_t pid1 , pid2;
 
-  if(pipe(pipe_array) == -1) error(1, 0, "pipe creation failed");
+  if(pipe(pipe_array) == -1) 
+    error(1, 0, "pipe creation failed");
 
-  pid1 = fork();
-  if(pid1 > 0)
-  {
-    pid2 = fork();
-    if(pid2 >0 )
-    {
+  pid2 = fork();
+  if(pid2 == 0) {
+    pid1 = fork();
+    if(pid1 == 0) {
       close(pipe_array[0]);
-      close(pipe_array[1]);
-
-      pid_t temp = waitpid(-1,&command->status,0);
-      if(temp == pid1)
-      {
-        waitpid(pid2,&command->status,0);
-        return;
-      }
-
-      if(temp == pid2)
-      {
-        waitpid(pid1,&command->status,0);
-        return;
-      }
-
-    }
-
-    else if(pid2 == 0)
-    {
-
-      close(pipe_array[0]);
-      dup2(pipe_array[1],1);
+      dup2(pipe_array[1], 1);
       execute_wrapper(command->u.command[0]);
-      exit(command->u.command[0]->status);
+      command->u.command[0]->status = WEXITSTATUS(command->u.command[0]->status);
+      _exit(command->u.command[0]->status);
     }
-
-  }
-  else if (pid1 == 0)
-  {
-    close(pipe_array[1]);
-    dup2(pipe_array[0],0);
-    execute_wrapper(command->u.command[1]);
-    exit(command->u.command[1]->status);
+    else {
+      close(pipe_array[1]);
+      dup2(pipe_array[0],0);
+      execute_wrapper(command->u.command[1]);
+      command->u.command[1]->status = WEXITSTATUS(command->u.command[1]->status);
+      _exit(command->u.command[1]->status);
+    }
   }
   else {
-    error(1,0,"Fork failure");
+    waitpid(pid2, &command->status, 0);
   }
+  command->status = WEXITSTATUS(command->status);
+  //printf("%d\n", command->status);
+  _exit(command->status);
+  return;
 }
 
 
 void execute_subshell_command(command_t command)
 {
+  pid_t pid1;
   if(command->input != NULL) {
     int fd0 = open(command->input,O_RDONLY,0666); //Open Input File
     if(fd0 < 0)                                            
@@ -192,26 +171,46 @@ void execute_subshell_command(command_t command)
     close(fd0);
   }
   
-  if(command->output != NULL){
+  if(command->output != NULL) {
     int fd1 = open(command->output,O_WRONLY | O_CREAT | O_TRUNC,0666); //Open Output File
     
     if(fd1 < 0)
       error(1,0,"Could not write to output file");
       dup2(fd1,1);  //Copy File descriptor to STDOUT
       close(fd1);
-    }
-  
-  execute_wrapper(command->u.subshell_command);
-  command->status = command->u.subshell_command->status;
+  }
+  pid1 = fork();
+  if(pid1 == 0) {
+    execute_wrapper(command->u.subshell_command);
+  }
+  else {
+    waitpid(pid1, &command->u.subshell_command->status, 0);
+  }
+  command->status = WEXITSTATUS(command->u.subshell_command->status);
+  _exit(command->status);
 }
 
 void execute_wrapper(command_t command);
 
 void execute_sequence_command(command_t command)
 {
-  execute_wrapper(command->u.command[0]);
-  execute_wrapper(command->u.command[1]);
-  command->status = command->u.command[1]->status; 
+  pid_t pid1, pid2;
+  pid1 = fork();
+  if(pid1 == 0) {
+    execute_wrapper(command->u.command[0]);
+  }
+  else {
+    waitpid(pid1, &command->u.command[0]->status, 0);
+  }
+  pid2 = fork();
+  if(pid2 == 0) {
+    execute_wrapper(command->u.command[1]);
+  }
+  else {
+    waitpid(pid2, &command->u.command[1]->status, 0);
+  }
+  command->status = WEXITSTATUS(command->u.command[1]->status);
+  _exit(command->status); 
 }
 
 

@@ -1,1 +1,1 @@
-cat temp2 && echo bc
+cat temp | cat temp2
