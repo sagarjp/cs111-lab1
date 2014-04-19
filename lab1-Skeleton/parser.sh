@@ -1,1 +1,1 @@
-cat temp | cat temp2
+(echo a || echo b) | (echo c | echo d)

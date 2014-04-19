@@ -2,30 +2,22 @@
 
 #include "command.h"
 #include "command-internals.h"
-
+#include "alloc.h"
 #include <stdio.h>
 #include <error.h>
-
-#include "alloc.h"
-#include <sys/types.h>
-#include <error.h>
 #include <unistd.h>
-#include <sys/wait.h>
 #include <sys/types.h>  
 #include <sys/wait.h> 
-#include <unistd.h>
 #include <stdlib.h> 
-#include <stdio.h>
 #include <string.h>
-#include <error.h>
-#include <errno.h>
-
 #include <fcntl.h>
 #include <sys/stat.h>   
-#include <fcntl.h>
-#include <stdio.h>
+
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
+
+void execute_wrapper(command_t command);
+
 int
 command_status (command_t c)
 {
@@ -44,29 +36,31 @@ void execute_simple_command(command_t command)
 
   if(pid == 0) {
     if(command->input != NULL) {
-      int inputdir = open(command->input,O_RDONLY,0666); //Open Input File
+      int inputdir = open(command->input, O_RDONLY, 0644);
       if(inputdir < 0)                                            
-              error(1,0,"Input file does not exist");
-      dup2(inputdir,0);  //Copy File descriptor to STDIN
+        error(1, 0, "Input file does not exist");
+      if(dup2(inputdir,0) < 0)
+        exit(1); 
       close(inputdir);
     }
 
     if(command->output != NULL) {
-      int outputdir = open(command->output,O_WRONLY | O_CREAT | O_TRUNC,0666); //Open Output File
+      int outputdir = open(command->output,O_WRONLY | O_CREAT | O_TRUNC, 0644);
       if(outputdir < 0)
         error(1,0,"Could not write to output file");
-        dup2(outputdir,1);  //Copy File descriptor to STDOUT
-        close(outputdir);
+      if(dup2(outputdir,1) < 0)
+        exit(1);
+      close(outputdir);
     }
 
     if(execvp(command->u.word[0], command->u.word) < 0) {
-      error(1,0,"Command execution failed");
+      error(1, 0, "Command execution failed");
     }
   }
   else {
     waitpid(pid,&command->status,0);
   }
-  //printf("simple %d\n", WEXITSTATUS(command->status));
+
   command->status = WEXITSTATUS(command->status);
   _exit(command->status);
 }        
@@ -74,6 +68,11 @@ void execute_simple_command(command_t command)
 void execute_and_command(command_t command)
 {
   pid_t pid1 = fork();
+
+  if(pid1 < 0) {
+    error(1,0,"Could not create new process");
+  }
+
   if(pid1 == 0) {
     execute_wrapper(command->u.command[0]);
   }
@@ -81,11 +80,14 @@ void execute_and_command(command_t command)
     waitpid(pid1, &command->u.command[0]->status, 0);
   }
   command->status = WEXITSTATUS(command->u.command[0]->status);
-  if(command_status(command->u.command[0]) != 0) {
+  if(command->u.command[0]->status != 0) {
     command->status = 1;
   }
   else {
     pid_t pid2 = fork();
+    if(pid2 < 0) {
+      error(1,0,"Could not create new process");
+    }
     if(pid2 == 0) {
       execute_wrapper(command->u.command[1]);
     }
@@ -100,6 +102,9 @@ void execute_and_command(command_t command)
 void execute_or_command(command_t command)
 {
   pid_t pid1 = fork();
+  if(pid1 < 0) {
+    error(1,0,"Could not create new process");
+  }
   if(pid1 == 0) {
     execute_wrapper(command->u.command[0]);
   }
@@ -108,8 +113,11 @@ void execute_or_command(command_t command)
   }
   command->status = WEXITSTATUS(command->u.command[0]->status);
   //printf("or %d\n",command->status);
-  if(command_status(command->u.command[0]) != 0) {
+  if(command->u.command[0]->status != 0) {
     pid_t pid2 = fork();
+    if(pid2 < 0) {
+      error(1,0,"Could not create new process");
+    }
     if(pid2 == 0) {
       execute_wrapper(command->u.command[1]);
     }
@@ -133,24 +141,34 @@ void execute_pipe_command(command_t command)
     error(1, 0, "pipe creation failed");
 
   pid2 = fork();
+  if(pid2 < 0) {
+    error(1,0,"Could not create new process");
+  }
   if(pid2 == 0) {
     pid1 = fork();
+    if(pid1 < 0) {
+      error(1,0,"Could not create new process");
+    }
     if(pid1 == 0) {
       close(pipe_array[0]);
-      dup2(pipe_array[1], 1);
+      if(dup2(pipe_array[1], 1) < 0)
+        exit(1);
       execute_wrapper(command->u.command[0]);
       command->u.command[0]->status = WEXITSTATUS(command->u.command[0]->status);
       _exit(command->u.command[0]->status);
     }
     else {
       close(pipe_array[1]);
-      dup2(pipe_array[0],0);
+      if(dup2(pipe_array[0],0) < 0)
+        exit(1);
       execute_wrapper(command->u.command[1]);
       command->u.command[1]->status = WEXITSTATUS(command->u.command[1]->status);
       _exit(command->u.command[1]->status);
     }
   }
   else {
+    close(pipe_array[0]);
+    close(pipe_array[1]);
     waitpid(pid2, &command->status, 0);
   }
   command->status = WEXITSTATUS(command->status);
@@ -164,22 +182,26 @@ void execute_subshell_command(command_t command)
 {
   pid_t pid1;
   if(command->input != NULL) {
-    int fd0 = open(command->input,O_RDONLY,0666); //Open Input File
+    int fd0 = open(command->input, O_RDONLY, 0644);
     if(fd0 < 0)                                            
       error(1,0,"Input file does not exist");
-    dup2(fd0,0);  //Copy File descriptor to STDIN
+    if(dup2(fd0,0) < 0)
+      exit(1);
     close(fd0);
   }
   
   if(command->output != NULL) {
-    int fd1 = open(command->output,O_WRONLY | O_CREAT | O_TRUNC,0666); //Open Output File
-    
+    int fd1 = open(command->output, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if(fd1 < 0)
       error(1,0,"Could not write to output file");
-      dup2(fd1,1);  //Copy File descriptor to STDOUT
-      close(fd1);
+    if (dup2(fd1,1) < 0)
+      exit(1);
+    close(fd1);
   }
   pid1 = fork();
+  if(pid1 < 0) {
+    error(1,0,"Could not create new process");
+  }
   if(pid1 == 0) {
     execute_wrapper(command->u.subshell_command);
   }
@@ -190,12 +212,13 @@ void execute_subshell_command(command_t command)
   _exit(command->status);
 }
 
-void execute_wrapper(command_t command);
-
 void execute_sequence_command(command_t command)
 {
   pid_t pid1, pid2;
   pid1 = fork();
+  if(pid1 < 0) {
+    error(1,0,"Could not create new process");
+  }
   if(pid1 == 0) {
     execute_wrapper(command->u.command[0]);
   }
@@ -203,6 +226,9 @@ void execute_sequence_command(command_t command)
     waitpid(pid1, &command->u.command[0]->status, 0);
   }
   pid2 = fork();
+  if(pid2 < 0) {
+    error(1,0,"Could not create new process");
+  }
   if(pid2 == 0) {
     execute_wrapper(command->u.command[1]);
   }
