@@ -56,13 +56,14 @@ void execute_simple_command(command_t command)
     if(execvp(command->u.word[0], command->u.word) < 0) {
       error(1, 0, "Command execution failed");
     }
+    _exit(command->status);
   }
   else {
     waitpid(pid,&command->status,0);
   }
 
   command->status = WEXITSTATUS(command->status);
-  _exit(command->status);
+  //_exit(command->status);
 }        
 
 void execute_and_command(command_t command)
@@ -75,6 +76,7 @@ void execute_and_command(command_t command)
 
   if(pid1 == 0) {
     execute_wrapper(command->u.command[0]);
+    _exit(command->u.command[0]->status);
   }
   else {
     waitpid(pid1, &command->u.command[0]->status, 0);
@@ -90,13 +92,14 @@ void execute_and_command(command_t command)
     }
     if(pid2 == 0) {
       execute_wrapper(command->u.command[1]);
+      _exit(command->u.command[1]->status);
     }
     else {
       waitpid(pid2, &command->u.command[1]->status, 0); 
     }
     command->status = WEXITSTATUS(command->u.command[1]->status);
   }
-  _exit(command->status);
+  //_exit(command->status);
 }
 
 void execute_or_command(command_t command)
@@ -107,6 +110,7 @@ void execute_or_command(command_t command)
   }
   if(pid1 == 0) {
     execute_wrapper(command->u.command[0]);
+    _exit(command->u.command[0]->status);
   }
   else {
     waitpid(pid1, &command->u.command[0]->status, 0);
@@ -120,6 +124,7 @@ void execute_or_command(command_t command)
     }
     if(pid2 == 0) {
       execute_wrapper(command->u.command[1]);
+      _exit(command->u.command[1]->status);
     }
     else {
       waitpid(pid2, &command->u.command[1]->status, 0); 
@@ -129,7 +134,7 @@ void execute_or_command(command_t command)
   else {
     command->status = 0;
   }
-  _exit(command->status);
+  //_exit(command->status);
 }        
 
 void execute_pipe_command(command_t command)
@@ -241,12 +246,13 @@ void execute_subshell_command(command_t command)
   }
   if(pid1 == 0) {
     execute_wrapper(command->u.subshell_command);
+    _exit(command->u.subshell_command->status);
   }
   else {
     waitpid(pid1, &command->u.subshell_command->status, 0);
   }
   command->status = WEXITSTATUS(command->u.subshell_command->status);
-  _exit(command->status);
+  //_exit(command->status);
 }
 
 void execute_sequence_command(command_t command)
@@ -258,6 +264,7 @@ void execute_sequence_command(command_t command)
   }
   if(pid1 == 0) {
     execute_wrapper(command->u.command[0]);
+    _exit(command->u.command[0]->status);
   }
   else {
     waitpid(pid1, &command->u.command[0]->status, 0);
@@ -268,12 +275,13 @@ void execute_sequence_command(command_t command)
   }
   if(pid2 == 0) {
     execute_wrapper(command->u.command[1]);
+    _exit(command->u.command[1]->status);
   }
   else {
     waitpid(pid2, &command->u.command[1]->status, 0);
   }
   command->status = WEXITSTATUS(command->u.command[1]->status);
-  _exit(command->status); 
+  //_exit(command->status); 
 }
 
 
