@@ -134,84 +134,47 @@ void execute_or_command(command_t command)
 
 void execute_pipe_command(command_t command)
 {
-  pid_t returnedPid;
-  pid_t firstPid;
-  pid_t secondPid;
-  int buffer[2];
-  int eStatus;
+  int pipe_array[2];
+  pid_t pid1 , pid2;
 
-  if ( pipe(buffer) < 0 )
-  {
-    error (1, 0, "pipe was not created");
+  if(pipe(pipe_array) == -1) 
+    error(1, 0, "pipe creation failed");
+
+  pid2 = fork();
+  if(pid2 < 0) {
+    error(1,0,"Could not create new process");
   }
-
-  firstPid = fork();
-  if (firstPid < 0)
-    {
-    error(1, 0, "fork was unsuccessful");
+  if(pid2 == 0) {
+    pid1 = fork();
+    if(pid1 < 0) {
+      error(1,0,"Could not create new process");
     }
-  else if (firstPid == 0) //child executes command on the right of the pipe
-  {
-    close(buffer[1]); //close unused write end
-
-        //redirect standard input to the read end of the pipe
-        //so that input of the command (on the right of the pipe)
-        //comes from the pipe
-    if ( dup2(buffer[0], 0) < 0 )
-    {
-      error(1, 0, "error with dup2");
-    }
-    execute_wrapper(command->u.command[1]);
-    _exit(command->u.command[1]->status);
-  }
-  else 
-  {
-    // Parent process
-    secondPid = fork(); //fork another child process
-                            //have that child process executes command on the left of the pipe
-    if (secondPid < 0)
-    {
-      error(1, 0, "fork was unsuccessful");
-    }
-        else if (secondPid == 0)
-    {
-      close(buffer[0]); //close unused read end
-      if(dup2(buffer[1], 1) < 0) //redirect standard output to write end of the pipe
-            {
-        error (1, 0, "error with dup2");
-            }
+    if(pid1 == 0) {
+      close(pipe_array[0]);
+      if(dup2(pipe_array[1], 1) < 0)
+        exit(1);
       execute_wrapper(command->u.command[0]);
+      command->u.command[0]->status = WEXITSTATUS(command->u.command[0]->status);
       _exit(command->u.command[0]->status);
     }
-    else
-    {
-      // Finishing processes
-      returnedPid = waitpid(-1, &eStatus, 0); //this is equivalent to wait(&eStatus);
-                        //we now have 2 children. This waitpid will suspend the execution of
-                        //the calling process until one of its children terminates
-                        //(the other may not terminate yet)
-
-      //Close pipe
-      close(buffer[0]);
-      close(buffer[1]);
-
-      if (secondPid == returnedPid )
-      {
-          //wait for the remaining child process to terminate
-        waitpid(firstPid, &eStatus, 0); 
-        command->status = WEXITSTATUS(eStatus);
-        return;
-      }
-      
-      if (firstPid == returnedPid)
-      {
-          //wait for the remaining child process to terminate
-          waitpid(secondPid, &eStatus, 0);
-        command->status = WEXITSTATUS(eStatus);
-        return;
-      }
+    else {
+      close(pipe_array[1]);
+      if(dup2(pipe_array[0],0) < 0)
+        exit(1);
+      execute_wrapper(command->u.command[1]);
+      command->u.command[1]->status = WEXITSTATUS(command->u.command[1]->status);
+      _exit(command->u.command[1]->status);
     }
-  } 
+  }
+  else {
+    close(pipe_array[0]);
+    close(pipe_array[1]);
+    waitpid(pid2, &command->status, 0);
+  }
+  command->status = WEXITSTATUS(command->status);
+  //printf("%d\n", command->status);
+  _exit(command->status);
+  return;
 }
 
 
