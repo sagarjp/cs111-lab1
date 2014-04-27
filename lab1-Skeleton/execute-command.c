@@ -344,12 +344,9 @@ void execute_wrapper(command_t c)
   }
 }
 
-//All the dependencies are added to the node and all the dependencies of the subcommand are added to the node.
 void add_dependencies(command_node_t node, command_t command)
 {
   node_t temp1;
-  //We get the command node and the command here.
-  //First lets check if the input is not = 0, if not that means it is a command with an input and we need to take care of it.
   if(command->input != 0)
   {
 
@@ -358,33 +355,28 @@ void add_dependencies(command_node_t node, command_t command)
       //printf("new inputs\n");
       int size = sizeof(node_t);
       node_t head = checked_malloc(size);
-      //We assign the head of our node_t struct to the input
       head->word = command->input;
-      //Next is set to null
       head->next = NULL;
       node->inputs = head;
     } 
-    else // This means that input is not null
+    else 
     {
       //printf("exists outputs\n");
-      //We need to add the word to the list. We iterate through the node struct till we reach the 
-      //same input as the command input
       temp1 = node->inputs;
       while(strcmp(temp1->word, command->input) != 0) 
       { 
         if(temp1->next == NULL)
         {
           temp1->next = checked_malloc(sizeof(node_t));
-          temp1->next->word = command->input; // Word getting added
+          temp1->next->word = command->input; 
           temp1->next->next = NULL;
         }
-        else //continue to loop with the next word in the node
+        else 
           temp1 = temp1->next;
       }
     } 
   }
 
-  //Time for output. check if the command has an output
   if(command->output != 0)
   {
     if(node->outputs == NULL)
@@ -396,42 +388,36 @@ void add_dependencies(command_node_t node, command_t command)
       head->next = NULL;
       node->outputs =  head;
     }
-    else // This means that input is not null
+    else
     {
       //printf("exists outputs\n");
-      //We need to add the word to the list. We iterate through the node struct till we reach the 
-      //same input as the command input
       temp1 = node->outputs;
       while(strcmp(temp1->word, command->output) != 0) 
       { 
         if(temp1->next == NULL)
         {
           temp1->next = checked_malloc(sizeof(node_t));
-          temp1->next->word = command->input; // Word getting added
+          temp1->next->word = command->input; 
           temp1->next->next = NULL;
         }
-        else //continue to loop with the next word in the node
+        else 
           temp1 = temp1->next;
       }
     }  
   }
 
   int temp = 0;
-  //At this point we are done adding the input and output of the command to the structs. Let's see what kind of command it is 
-  //and do things accordingly
+
   if(command->type == AND_COMMAND || command->type == OR_COMMAND || command->type == SEQUENCE_COMMAND || command->type == PIPE_COMMAND)
   {
-    add_dependencies(node, command->u.command[0]); //Above mentioned commands could have input and out, so have to 
-    //to add dependencies both for input and output. That is the left side of a pipe could itself be command.
-    //So we need to take care of those dependecies as well. 
+    add_dependencies(node, command->u.command[0]);  
     add_dependencies(node, command->u.command[1]);
   }
   if(command->type == SUBSHELL_COMMAND)
   {
     add_dependencies(node, command->u.subshell_command);
   } 
-  //If the command is a simple command then it is a different case. we do not need to call the add dependencies function again
-  //Because simple command will not have a subcommand 
+
   if(command->type == SIMPLE_COMMAND  )
   { 
     temp = 1;
@@ -441,7 +427,6 @@ void add_dependencies(command_node_t node, command_t command)
       if(node->inputs == NULL)
       { 
         //printf("new inputs simple\n");
-        //Making the input of the node point to the head of node_t
         int size = sizeof(node_t);
         node_t head = checked_malloc(size);
         head->word = command->u.word[temp];
@@ -451,29 +436,22 @@ void add_dependencies(command_node_t node, command_t command)
       else
       {
         //printf("exists inputs simple\n");
-        //We need to add the word to the list. We iterate through the noed struct till we reach the 
-        //same input as the command input
         temp1 = node->inputs;
         while(strcmp(temp1->word, command->u.word[temp]) != 0)
         { 
           if(temp1->next == NULL)
           {
             temp1->next = checked_malloc(sizeof(node_t));
-            temp1->next->word = command->u.word[temp]; // Word getting added
+            temp1->next->word = command->u.word[temp];
             temp1->next->next = NULL;
           }
           else
-            //traverse the list( node struct)
             temp1 = temp1->next;
         }
       }
-        //This handles cases like echo hi > text
-        //echo hello > text
-        //cat text should hold text
       if(node->outputs == NULL)
       { 
           //printf("new outputs simple\n");
-          //Making the input of the node point to the head of node_t
         int size = sizeof(node_t);
         node_t head = checked_malloc(size);
         head->word = command->u.word[temp];
@@ -482,9 +460,7 @@ void add_dependencies(command_node_t node, command_t command)
       }   
       else
       {
-          //printf("exists outputs simple\n");
-          //We need to add the word to the list. We iterate through the noed struct till we reach the 
-          //same input as the command output. To see if there is a dependency         
+          //printf("exists outputs simple\n");       
         temp1 = node->outputs;
         while(strcmp(temp1->word, command->u.word[temp]) != 0)
         { 
@@ -492,11 +468,10 @@ void add_dependencies(command_node_t node, command_t command)
           if(temp1->next == NULL)
           {
             temp1->next = checked_malloc(sizeof(node_t));
-              temp1->next->word = command->u.word[temp]; // Word getting added
+              temp1->next->word = command->u.word[temp];
               temp1->next->next = NULL;
             }
             else
-              //traverse the list( node struct)
               temp1 = temp1->next;
           }
         } 
@@ -520,7 +495,6 @@ void add_dependencies(command_node_t node, command_t command)
         //printf("%s %s\n", current_output->word, current_input->word);
         if(strcmp(current_input->word, current_output->word) == 0)
         {
-        //increamenting dependencies and making the waiting list know
           next_dependent->dependencies += 1;
 
           child_node_t dependecylist = previous->dependents;
@@ -568,16 +542,13 @@ void add_dependencies(command_node_t node, command_t command)
     int status;
     for(;;)
     {
-    //Stop condition, we have executed everything
       if(dep_head == NULL)
         break;  
       command_node_t current_node = dep_head;
-    // For everyone on the list
       for(;;)
       {
         if(current_node==NULL)
           break;
-      //This means there are no dependencies
         if(current_node->dependencies == 0 && current_node->pid < 1)
         {
           temp1 = 0;
@@ -588,7 +559,6 @@ void add_dependencies(command_node_t node, command_t command)
             waitpid(current_node->before[temp1]->pid, &status, 0);
             temp1++;
           }
-        //We can fork now
           //printf("\n");
           print_command(current_node->c);
           int pid = fork();
@@ -596,19 +566,17 @@ void add_dependencies(command_node_t node, command_t command)
             error(1,0,"Could not create new process");
           else if(pid == 0)
           {
-            execute_command(current_node->c,0); //Get the command and do the same thing we did for part b
-            exit(1); // If i do not exit here it goes into infinite loop
+            execute_command(current_node->c,0); 
+            exit(1); 
           }
           else if(pid > 0)
           {
             current_node->pid = pid;
           }
         }
-      //Go to the next one,
         current_node = current_node->next;
       }
       
-    //Waiting!!
       pid_t pid1 = waitpid(-1, &status, 0);
       
 
@@ -618,12 +586,10 @@ void add_dependencies(command_node_t node, command_t command)
       {
         if(curr_node == NULL)
           break;
-      //Done waiting
         if(curr_node->pid == pid1)
         {
           //printf("dependents\n");
           child_node_t current_dependency = curr_node->dependents;
-        //Basically traverse the dependency list
           while(current_dependency != NULL)
           {
             command_node_t temp_node = current_dependency->dependent;
@@ -635,7 +601,6 @@ void add_dependencies(command_node_t node, command_t command)
             current_dependency = current_dependency->next;
           }
           //printf("dependents\n");
-        //That one is done, time to move to the next one
           if(previous_node == NULL)
             dep_head = curr_node->next;
           else
@@ -646,12 +611,9 @@ void add_dependencies(command_node_t node, command_t command)
         curr_node = curr_node->next;
       }
     }
-  //Returning the command
     return final_command;
   }
 
-//Because we are parallizing, it makes no sense to accept commands one by one.
-//We had to take in the whole command stream and make
   command_t execute_parallel_stream (command_stream_t com)
   {
     int temp;
@@ -659,22 +621,17 @@ void add_dependencies(command_node_t node, command_t command)
 
     command_t final_command = NULL;
     command_t command;
-  //This function gets the command stream, we are reading the commands, one after the other. 
     for(;;)
     {
       command = read_command_stream(com);
 
-    //This means we finished reading the command
       if(!command)
         break;
       
       command_node_t curr_node = NULL;
 
-    //We got a new command, so create a new command, initialize everything to null and new_node->c to the command read
       command_node_t new_node = checked_malloc(sizeof(struct command_node_execute));
-    //Initializae function will initialize everything!
       initialize(new_node, command);
-    //Then we simply need to add the dependencies to our list
       add_dependencies(new_node, command);
       //print_command(new_node->c);
     // while(new_node->inputs != NULL) 
@@ -691,14 +648,11 @@ void add_dependencies(command_node_t node, command_t command)
     // printf("\n");  
       final_command = command;
 
-  //At this point the list has been populated and the dependencies have been added
       command_node_t current_node = dep_head;
       for(;;)
       {
-      //This means there are no dependencie
         if(current_node == NULL)  
           break;
-      //If there are dependencies found, we do comparisons and assign the current node accordingly
         //printf("outputs inputs\n");
         temp = helper(current_node, new_node->outputs, current_node->inputs, new_node);
         if(temp == 1) 
@@ -725,14 +679,11 @@ void add_dependencies(command_node_t node, command_t command)
         current_node = current_node->next;
       }
 
-    //This means means we can add to the waiting list
       if(curr_node == NULL)
         dep_head = new_node;
       else
         curr_node->next = new_node;
     }
-  //dep head
-  // While there's someone on the waiting list
   // while(dep_head != NULL)
   // {
   //   printf("%d\n", dep_head->dependencies);

@@ -145,6 +145,15 @@ enum token_type get_token_type(char *str)
       }
     }
 
+    if (inputStream[byteCount-1] == '\n')
+    {
+      while (inputStream[byteCount-1] == '\n')
+        byteCount--;
+      byteCount++;
+      inputStream[byteCount] = EOF;
+      return inputStream;
+    }
+
     if(inputStream[byteCount-1] != '\n') {
       if (byteCount == inputStreamSize) {
         inputStreamSize += 100;
