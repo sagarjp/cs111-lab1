@@ -57,22 +57,21 @@ main (int argc, char **argv)
   if (time_travel && !print_tree) {
     last_command = execute_parallel_stream (command_stream);
   }
-
   else {
-  while ((command = read_command_stream (command_stream)))
+    while ((command = read_command_stream (command_stream)))
     {
       if (print_tree)
-	{
-	  printf ("# %d\n", command_number++);
-	  print_command (command);
-	}
-      else
-	{
-	  last_command = command;
-	  execute_command (command, time_travel);
-	}
-    }
-  }
+      {
+       printf ("# %d\n", command_number++);
+       print_command (command);
+     }
+     else
+     {
+       last_command = command;
+       execute_command (command, time_travel);
+     }
+   }
+ }
 
-  return print_tree || !last_command ? 0 : command_status (last_command);
+ return print_tree || !last_command ? 0 : command_status(last_command);
 }
