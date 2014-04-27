@@ -606,8 +606,7 @@ forkingandwaiting(command_node_t dep_head, command_t final_command)
 
 //Because we are parallizing, it makes no sense to accept commands one by one.
 //We had to take in the whole command stream and make
-command_t
-execute_parallel_stream (command_stream_t com)
+command_t execute_parallel_stream (command_stream_t com)
 {
   command_node_t dep_head = NULL;
 

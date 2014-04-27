@@ -158,3 +158,5 @@ void execute_command (command_t, int);
    been executed.  Wait for the command, if it is not already finished.  */
 int command_status (command_t);
 
+command_t execute_parallel_stream (command_stream_t);
+
