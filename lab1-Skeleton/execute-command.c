@@ -44,7 +44,7 @@ struct command_node_execute
   struct node* outputs;
   int dependencies;
   struct child_node* dependents;
-  int pid;
+  pid_t pid;
   struct command_node_execute* next;
   char *word;
   struct command_node_execute** before;
@@ -151,7 +151,7 @@ void execute_or_command(command_t command)
     waitpid(pid1, &command->u.command[0]->status, 0);
   }
   command->status = WEXITSTATUS(command->u.command[0]->status);
-  //printf("or %d\n",command->status);
+  ////printf("or %d\n",command->status);
   if(command->u.command[0]->status != 0) {
     pid_t pid2 = fork();
     if(pid2 < 0) {
@@ -347,6 +347,8 @@ void execute_wrapper(command_t c)
 void add_dependencies(command_node_t node, command_t command)
 {
   node_t temp1;
+  //print_command(command);
+  //printf("\n");
   if(command->input != 0)
   {
 
@@ -392,12 +394,14 @@ void add_dependencies(command_node_t node, command_t command)
     {
       //printf("exists outputs\n");
       temp1 = node->outputs;
+
       while(strcmp(temp1->word, command->output) != 0) 
       { 
+        //printf("%s\n", temp1->word);
         if(temp1->next == NULL)
         {
           temp1->next = checked_malloc(sizeof(node_t));
-          temp1->next->word = command->input; 
+          temp1->next->word = command->output; 
           temp1->next->next = NULL;
         }
         else 
@@ -421,7 +425,7 @@ void add_dependencies(command_node_t node, command_t command)
   if(command->type == SIMPLE_COMMAND  )
   { 
     temp = 1;
-    //printf("%s\n", command->u.word[temp]);
+    ////printf("%s\n", command->u.word[temp]);
     while(command->u.word[temp] != NULL)
     {
       if(node->inputs == NULL)
@@ -451,7 +455,7 @@ void add_dependencies(command_node_t node, command_t command)
       }
       if(node->outputs == NULL)
       { 
-          //printf("new outputs simple\n");
+        //printf("new outputs simple\n");
         int size = sizeof(node_t);
         node_t head = checked_malloc(size);
         head->word = command->u.word[temp];
@@ -460,11 +464,11 @@ void add_dependencies(command_node_t node, command_t command)
       }   
       else
       {
-          //printf("exists outputs simple\n");       
+        //printf("exists outputs simple\n");       
         temp1 = node->outputs;
         while(strcmp(temp1->word, command->u.word[temp]) != 0)
         { 
-            //printf("%s\n", temp1->word);
+          //printf("%s\n", temp1->word);
           if(temp1->next == NULL)
           {
             temp1->next = checked_malloc(sizeof(node_t));
@@ -492,7 +496,7 @@ void add_dependencies(command_node_t node, command_t command)
       {
         if(current_input == NULL)
           break;
-        //printf("%s %s\n", current_output->word, current_input->word);
+        ////printf("%s %s\n", current_output->word, current_input->word);
         if(strcmp(current_input->word, current_output->word) == 0)
         {
           next_dependent->dependencies += 1;
@@ -511,8 +515,8 @@ void add_dependencies(command_node_t node, command_t command)
             previous->dependents = new_node;
           else
             curr_node->next = new_node;
-          //print_command(next_dependent->c);
-          //printf("dependent found %d\n", next_dependent->dependencies);
+          ////print_command(next_dependent->c);
+          ////printf("dependent found %d\n", next_dependent->dependencies);
           return -1;
         }
         current_input = current_input->next;
@@ -559,8 +563,8 @@ void add_dependencies(command_node_t node, command_t command)
             waitpid(current_node->before[temp1]->pid, &status, 0);
             temp1++;
           }
-          //printf("\n");
-          print_command(current_node->c);
+          ////printf("\n");
+          //print_command(current_node->c);
           int pid = fork();
           if(pid < 0)
             error(1,0,"Could not create new process");
@@ -588,19 +592,19 @@ void add_dependencies(command_node_t node, command_t command)
           break;
         if(curr_node->pid == pid1)
         {
-          //printf("dependents\n");
+          ////printf("dependents\n");
           child_node_t current_dependency = curr_node->dependents;
           while(current_dependency != NULL)
           {
             command_node_t temp_node = current_dependency->dependent;
 
             temp_node->dependencies -= 1;
-            //printf("%d\n", temp_node->dependencies);
-            //print_command(temp_node->c);
+            ////printf("%d\n", temp_node->dependencies);
+            ////print_command(temp_node->c);
             
             current_dependency = current_dependency->next;
           }
-          //printf("dependents\n");
+          ////printf("dependents\n");
           if(previous_node == NULL)
             dep_head = curr_node->next;
           else
@@ -621,58 +625,73 @@ void add_dependencies(command_node_t node, command_t command)
 
     command_t final_command = NULL;
     command_t command;
+    int count = 0;
+    command_node_t curr_node;
     for(;;)
     {
+      count++;
+
+      if (count == 11)
+      {
+        ;
+      }
       command = read_command_stream(com);
 
       if(!command)
         break;
       
-      command_node_t curr_node = NULL;
+      curr_node = NULL;
 
       command_node_t new_node = checked_malloc(sizeof(struct command_node_execute));
       initialize(new_node, command);
       add_dependencies(new_node, command);
-      //print_command(new_node->c);
+      ////print_command(new_node->c);
     // while(new_node->inputs != NULL) 
     // {
-    //   printf("%s ", new_node->inputs->word);
+    //   //printf("%s ", new_node->inputs->word);
     //   new_node->inputs = new_node->inputs->next;
     // }
-    // printf("\n");  
+    // //printf("\n");  
     // while(new_node->outputs != NULL)
     // {
-    //   printf("%s ", new_node->outputs->word);
+    //   //printf("%s ", new_node->outputs->word);
     //   new_node->outputs = new_node->outputs->next;
     // }
-    // printf("\n");  
+    // //printf("\n");  
       final_command = command;
 
       command_node_t current_node = dep_head;
+      int size = 10;
       for(;;)
       {
         if(current_node == NULL)  
           break;
-        //printf("outputs inputs\n");
+        ////printf("outputs inputs\n");
         temp = helper(current_node, new_node->outputs, current_node->inputs, new_node);
         if(temp == 1) 
         {
-          //printf("inputs outputs\n");
+          ////printf("inputs outputs\n");
           temp = helper(current_node, current_node->outputs, new_node->inputs, new_node);
         }
         if(temp == 1)
         {
-          //printf("outputs outputs\n");
+          ////printf("outputs outputs\n");
           temp = helper(current_node, current_node->outputs, new_node->outputs, new_node);
         }
-        //printf("%d\n", temp);
+        ////printf("%d\n", temp);
         if(temp == -1)
         {
           if(new_node->before == NULL)
-            new_node->before = (command_node_t *)checked_malloc(10*sizeof(struct command_node_execute *));
-          if(new_node->length < 10)
+            new_node->before = (command_node_t *)checked_malloc(size*sizeof(struct command_node_execute *));
+          if (new_node->length >= size) {
+            size += 10;
+            new_node->before = checked_realloc(new_node->before, size*sizeof(struct command_node_execute *));
+          }
+          if(new_node->length < size)
             new_node->before[new_node->length] = current_node;
           new_node->length++;
+
+
         }
         curr_node = current_node;
       //Traversing the list
@@ -684,13 +703,17 @@ void add_dependencies(command_node_t node, command_t command)
       else
         curr_node->next = new_node;
     }
+    if (curr_node != NULL && curr_node ->next != NULL)
+      curr_node->next->next = NULL;
+    else
+      dep_head->next = NULL;
   // while(dep_head != NULL)
   // {
-  //   printf("%d\n", dep_head->dependencies);
-  //   print_command(dep_head->c);
+  //   //printf("%d\n", dep_head->dependencies);
+  //   //print_command(dep_head->c);
   //   while(dep_head->length != 0)
   //   {
-  //     print_command(dep_head->before[dep_head->length-1]->c);
+  //     //print_command(dep_head->before[dep_head->length-1]->c);
   //     dep_head->length--;
   //   }
   //   dep_head = dep_head->next;

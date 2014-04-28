@@ -651,7 +651,7 @@ command_stream_t make_command(token_t t)
           break;
       }
       pop(operators);
-      command_t s = checked_malloc(sizeof(struct command_node));
+      command_t s = checked_malloc(sizeof(struct command));
       struct command_node *n = checked_malloc(sizeof(struct command_node));
       s->type = SUBSHELL_COMMAND;
       s->status = 1;
